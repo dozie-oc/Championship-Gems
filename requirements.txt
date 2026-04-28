@@ -1,0 +1,12 @@
+pandas
+numpy
+plotly
+thefuzz
+requests
+beautifulsoup4
+lxml
+jupyter
+scipy
+playwright
+selenium
+undetected_chromedriver
