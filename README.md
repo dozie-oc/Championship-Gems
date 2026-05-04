@@ -95,3 +95,5 @@ Building a data pipeline from the ground up rarely goes exactly to plan. Here’
 - **Navigating the 403 Forbidden Walls:** Headless scraping is aggressively blocked by football stats sites. I had to evolve the scraper from a naive `requests` approach to a full Playwright stealth implementation, incorporating polite delays and domain hopping.
 - **The Duplication Bug:** Discovered that Transfermarkt would silently return duplicate pages instead of a 404 when it ran out of players. Solved this by building a dynamic "seen-player" guard into the pagination loop.
 - **Bridging the Name Gap:** Matching "Jesurun Rak-Sakyi" to "J. Rak-Sakyi" requires robust fuzzy matching, which I implemented using `thefuzz` and an override mapping dictionary.
+
+⭐ If you find this project useful, give it a star! Questions or feedback? Open an issue or reach out.
