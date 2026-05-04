@@ -8,11 +8,11 @@ This project is an advanced, automated data analysis pipeline dedicated to **fin
 
 ### 📸 Project Dashboard Preview
 
-![Championship Gems Dashboard](screenshots\performance-vs-mkt-value.png)
+![Championship Gems Dashboard](screenshots/performance-vs-mkt-value.png)
 
 *Plotly dashboard showing player contribution vs market value*
 
-![Top Undervalued Players](screenshots\value-for-money.png)
+![Top Undervalued Players](screenshots/value-for-money.png)
 
 *Example: Top 10 Undervalued Gems based on Value-for-Money Score*
 
