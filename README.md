@@ -1,61 +1,97 @@
-# EFL Championship 2025-26: Player Analysis Pipeline
+# EFL Championship 2025-26: Unearthing Hidden Gems 💎
 
-An advanced, decoupled, and highly reliable data analysis pipeline identifying undervalued and overvalued players in the EFL Championship.
+Football isn't just played on the pitch; it's won in the transfer market. In a league as notoriously gruelling and competitive as the EFL Championship, the difference between promotion and mid-table mediocrity often comes down to finding that one overlooked player. 
 
-## 📁 Project Structure
+This project is an advanced, automated data analysis pipeline dedicated to **finding hidden gems from EFL Championship clubs**. By crunching market values from Transfermarkt and underlying performance statistics from FBref, we systematically identify which players are undervalued relative to their output, and which ones are riding high on reputation alone.
 
-```
+---
+
+## 🏆 What It Delivers
+
+- **Automated Data Engineering:** Scrapes, cleans, and merges messy real-world football data.
+- **Smart Valuation:** Calculates an objective "Value-for-Money" metric based on a weighted formula (0.6 × Offensive + 0.4 × Defensive scores).
+- **Interactive Visualizations:** Generates a stunning interactive Plotly HTML dashboard to explore the data dynamically.
+- **Clean Artifacts:** Outputs a highly polished `final_ranked_players.csv` ready for immediate use.
+
+---
+
+## 🛠 Tech Stack & Architecture
+
+This pipeline is built on a robust, decoupled architecture:
+
+* **Language:** Python 3
+* **Scraping Layer (`scraper.py`):** Utilizes **Playwright** with stealth configurations to handle modern anti-bot protections, with intelligent fallbacks (Wayback Machine).
+* **Data Science Layer (`build_notebook.py` / Jupyter):** Uses `pandas` for aggressive data wrangling, handling multi-level headers, and `thefuzz` for intelligent fuzzy string matching across disparate datasets.
+* **Visualization:** `plotly` for interactive, beautiful dashboarding.
+
+**Folder Structure:**
+```text
 Championship/
-├── scraper.py            # Data engineering layer — scrapes TM + FBref to data/raw/
-├── build_notebook.py     # Generates notebooks/EFL_Championship_Analysis.ipynb
-├── requirements.txt
-├── README.md
-├── chip/                 # Python virtual environment
-├── data/
-│   ├── raw/              # Scraped CSV inputs (read by the notebook)
-│   │   ├── transfermarkt_top200.csv
-│   │   ├── fbref_standard.csv
-│   │   └── fbref_shooting.csv
-│   ├── player_mapping.json   # Manual TM→FBref name overrides
-│   └── final_ranked_players.csv  # Pipeline output
-├── notebooks/
-│   └── EFL_Championship_Analysis.ipynb
-├── reports/              # Generated HTML outputs
-│   ├── championship_dashboard.html
-│   └── EFL_Championship_Analysis_executed.html
-└── scripts/              # Dev utilities (diagnostics, exploration, tests)
+├── scraper.py            # Live scraping layer (Playwright + Stealth)
+├── build_notebook.py     # Generates the master analysis notebook
+├── requirements.txt      # Project dependencies
+├── README.md             # You are here
+├── data/                 
+│   ├── raw/              # Scraped CSV inputs
+│   ├── player_mapping.json # Manual TM→FBref name overrides
+│   └── final_ranked_players.csv # The final pipeline output
+├── notebooks/            # Generated Jupyter Notebooks
+├── reports/              # HTML Dashboards & Outputs
+└── scripts/              # Development and diagnostic utilities
 ```
 
-## 🚀 Decoupled Architecture
+---
 
-* **`scraper.py`** — Engineering layer. Bypasses Cloudflare via the Wayback archive proxy and
-  saves clean flat CSVs to `data/raw/`. Includes early-termination logic: if Transfermarkt starts
-  returning a repeated page it stops immediately, preventing duplicate player rows.
-* **`build_notebook.py`** — Generates the Jupyter notebook programmatically. Run after any
-  pipeline logic changes.
-* **`notebooks/EFL_Championship_Analysis.ipynb`** — Science layer. Loads CSVs, applies dynamic
-  thresholding, computes scores, and renders interactive Plotly diagnostics.
+## ✨ Key Features
 
-## ⚙️ Analytics Implementations
+- **Live Scraping First:** Employs Playwright to emulate real browsing, trying multiple domain variants (`.us`, `.com`) before safely falling back to archive proxies.
+- **Dynamic Minutes Filter:** Automatically drops players who haven't played at least 25% of the league's maximum minutes so far, keeping the analysis relevant at any point in the season.
+- **Fuzzy Matching on Steroids:** Employs a ≥75% fuzzy threshold and a manual JSON dictionary to perfectly bridge the gap between Transfermarkt's and FBref's differing name conventions.
+- **Deduplication Guards:** Robust defenses against pagination quirks to ensure 1 player = 1 row.
 
-* **Fuzzy Name Matching** — `thefuzz` at ≥75% + a manual `data/player_mapping.json` override
-  dictionary to bridge TM/FBref spelling differences.
-* **Dynamic Minutes Filter** — Uses `0.25 × max_90s` instead of a hardcoded cutoff, so the
-  pipeline stays valid regardless of when in the season it runs.
-* **Configurable Scoring** — `0.6 × Offensive + 0.4 × Defensive` weights produce the
-  `Total Contribution Score` matched against the market-value yardstick.
-* **Deduplication Guard** — Both `scraper.py` and the notebook cell deduplicate the Transfermarkt
-  data before it reaches the merge step, preventing inflated player counts.
+---
 
-> **Note on player count:** Transfermarkt's Championship market-value list currently surfaces
-> ~100 ranked players. The pipeline collects all available pages; the file is named
-> `transfermarkt_top200.csv` for naming continuity but will contain however many players
-> the site currently exposes (typically 100).
+## 🚀 How to Run
 
-## 🏃 Run Instructions
+Want to find some hidden gems yourself?
 
-1. `pip install -r requirements.txt`
-2. Scrape fresh data: `python scraper.py`
-3. (Optional) Rebuild notebook: `python build_notebook.py`
-4. Open `notebooks/EFL_Championship_Analysis.ipynb` in Jupyter and run all cells.
-5. Outputs: `data/final_ranked_players.csv` · `reports/championship_dashboard.html`
+1. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   playwright install chromium
+   ```
+2. **Scrape the Latest Data:**
+   ```bash
+   python scraper.py
+   ```
+3. **Build the Analytics Engine:**
+   ```bash
+   python build_notebook.py
+   ```
+4. **Explore:** Open `notebooks/EFL_Championship_Analysis.ipynb` and run all cells, or open `reports/championship_dashboard.html` to view the finalized visual dashboard.
+
+---
+
+## 💡 Key Findings (Season 25/26)
+
+Based on our final Value-for-Money calculations, the data revealed some fascinating market inefficiencies:
+
+- **The Coventry City Value Engine (Jay Dasilva & Josh Eccles):** The algorithm identified Coventry's midfield and defensive flank as holding the highest "Value-for-Money" scores in the league. At just €7.0m, Josh Eccles generated a staggering 133 progressive passes over 22 90s. Similarly, Jay Dasilva (€6m) proved highly efficient in ball progression relative to his low valuation, marking them both as premier "Hidden Gems".
+- **The Ball Carrier Supreme (Tom Fellows - West Brom):** Valued at a modest €8.0m, Fellows is a statistical anomaly. Producing a massive 121 progressive carries across 23.9 90s, his ability to single-handedly drive his team up the pitch far exceeds the output of wingers priced twice as high.
+- **Validating the Premium Price Tag (Finn Azaz - Middlesbrough):** While we hunt for bargains, the pipeline also identifies true "Stars" who justify their heavy price tags. Valued at €18.0m, Azaz's underlying metrics (6.4 xG, 7.7 xAG, and 153 progressive passes) firmly place him in the top-right quadrant. He isn't overvalued; he's simply elite.
+
+---
+
+## 🧠 Why This Matters
+
+In modern football analytics, descriptive stats only tell part of the story. Contextualizing performance *against market value* allows clubs to optimize tight budgets, outsmart wealthier rivals, and identify market inefficiencies. This project isn't just about code; it's a practical implementation of the "Moneyball" philosophy applied to the English second tier.
+
+---
+
+## 🧗 Challenges Overcome & What I Learned
+
+Building a data pipeline from the ground up rarely goes exactly to plan. Here’s what it took to get this working smoothly:
+
+- **Navigating the 403 Forbidden Walls:** Headless scraping is aggressively blocked by football stats sites. I had to evolve the scraper from a naive `requests` approach to a full Playwright stealth implementation, incorporating polite delays and domain hopping.
+- **The Duplication Bug:** Discovered that Transfermarkt would silently return duplicate pages instead of a 404 when it ran out of players. Solved this by building a dynamic "seen-player" guard into the pagination loop.
+- **Bridging the Name Gap:** Matching "Jesurun Rak-Sakyi" to "J. Rak-Sakyi" requires robust fuzzy matching, which I implemented using `thefuzz` and an override mapping dictionary.
