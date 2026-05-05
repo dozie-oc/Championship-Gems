@@ -46,7 +46,7 @@ Championship/
 │   ├── raw/              # Scraped CSV inputs
 │   ├── player_mapping.json # Manual TM→FBref name overrides
 │   └── final_ranked_players.csv # The final pipeline output
-├── notebooks/            # Generated Jupyter Notebooks
+├── notebooks/            # Jupyter Notebooks
 ├── reports/              # HTML Dashboards & Outputs
 ```
 
@@ -74,11 +74,7 @@ Want to find some hidden gems yourself?
    ```bash
    python scraper.py
    ```
-3. **Build the Analytics Engine:**
-   ```bash
-   python build_notebook.py
-   ```
-4. **Explore:** Open `notebooks/EFL_Championship_Analysis.ipynb` and run all cells, or open `reports/championship_dashboard.html` to view the finalized visual dashboard.
+3. **Explore:** Open `notebooks/EFL_Championship_Analysis.ipynb` and run all cells, or open `reports/championship_dashboard.html` to view the finalized visual dashboard.
 
 ---
 
