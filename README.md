@@ -40,7 +40,6 @@ This pipeline is built on a robust, decoupled architecture:
 ```text
 Championship/
 ├── scraper.py            # Live scraping layer (Playwright + Stealth)
-├── build_notebook.py     # Generates the master analysis notebook
 ├── requirements.txt      # Project dependencies
 ├── README.md             # You are here
 ├── data/                 
@@ -49,7 +48,6 @@ Championship/
 │   └── final_ranked_players.csv # The final pipeline output
 ├── notebooks/            # Generated Jupyter Notebooks
 ├── reports/              # HTML Dashboards & Outputs
-└── scripts/              # Development and diagnostic utilities
 ```
 
 ---

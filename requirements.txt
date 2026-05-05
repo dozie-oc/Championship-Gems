@@ -8,5 +8,3 @@ lxml
 jupyter
 scipy
 playwright
-selenium
-undetected_chromedriver

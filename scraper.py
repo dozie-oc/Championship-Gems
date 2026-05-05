@@ -1,7 +1,7 @@
 import time
 import pandas as pd
 import os
-import re
+import requests
 from bs4 import BeautifulSoup
 
 try:
@@ -12,10 +12,10 @@ except ImportError:
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-def get_html_playwright(url, wait_time=3):
+def fetch_html_playwright(url, wait_time=3):
+    """Fetches HTML using Playwright with stealth settings to bypass basic protections."""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # Apply stealth-like settings
         context = browser.new_context(
             user_agent=USER_AGENT,
             viewport={'width': 1920, 'height': 1080},
@@ -23,7 +23,7 @@ def get_html_playwright(url, wait_time=3):
             bypass_csp=True
         )
         page = context.new_page()
-        # Mask webdriver to avoid simple detection
+        # Basic stealth to hide automated webdriver
         page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
         try:
@@ -31,80 +31,76 @@ def get_html_playwright(url, wait_time=3):
             page.goto(url, timeout=45000, wait_until='domcontentloaded')
             time.sleep(wait_time)
             html = page.content()
-            browser.close()
             return html
         except Exception as e:
             print(f"Error loading {url}: {e}")
-            browser.close()
             return None
+        finally:
+            browser.close()
 
-def fetch_transfermarkt_pages():
-    # Try .us first, then .com
+def parse_transfermarkt_row(row):
+    """Helper to cleanly extract player data from a single Transfermarkt table row."""
+    cells = row.find_all('td', recursive=False)
+    if len(cells) < 6: return None
+    
+    # Name and Position are nested in a sub-table in cell 1
+    name_td = cells[1].find('table')
+    if name_td and len(name_td.find_all('tr')) >= 2:
+        name_rows = name_td.find_all('tr')
+        player_name = name_rows[0].find('a').text.strip()
+        pos = name_rows[1].text.strip()
+    else:
+        player_name = cells[1].text.strip()
+        pos = "N/A"
+        
+    age = cells[2].text.strip()
+    squad_img = cells[3].find('img')
+    squad = squad_img.get('alt') if squad_img else "Unknown"
+    val_str = cells[5].text.strip()
+    
+    return {
+        "Player": player_name,
+        "Squad": squad,
+        "Position": pos,
+        "Age": age,
+        "Market Value str": val_str
+    }
+
+def scrape_transfermarkt():
+    """Scrapes top ~200 players, trying .us then .com to bypass regional blocks."""
     domains = ["transfermarkt.us", "transfermarkt.com"]
-    players = []
     
     for domain in domains:
-        print(f"\n--- Trying Transfermarkt on {domain} ---")
+        print(f"\n--- Scraping Transfermarkt via {domain} ---")
         players = []
         seen_players = set()
-        success = True
         
         for page_num in range(1, 9): # 8 pages * 25 = 200 players
             url = f"https://www.{domain}/championship/marktwerte/wettbewerb/GB2?ajax=yw1&page={page_num}"
-            print(f"Scraping Page {page_num}...")
+            html = fetch_html_playwright(url, wait_time=3)
             
-            html = get_html_playwright(url, wait_time=3)
-            if not html:
-                success = False
-                break
+            if not html: break
                 
             soup = BeautifulSoup(html, 'html.parser')
             table = soup.find('table', class_='items')
             
             if not table:
-                print(f"Could not find players table on page {page_num}.")
-                if "403" in html or "Forbidden" in html or "Cloudflare" in html:
-                    print("Blocked by Cloudflare/403.")
-                    success = False
+                print(f"Could not find players table on page {page_num}. Likely blocked (403).")
                 break
             
             rows = table.find('tbody').find_all('tr', recursive=False)
             new_players_count = 0
+            
             for row in rows:
-                cells = row.find_all('td', recursive=False)
-                if len(cells) < 6: continue
+                player_data = parse_transfermarkt_row(row)
+                if not player_data: continue
                 
-                name_td = cells[1].find('table')
-                if name_td:
-                    name_rows = name_td.find_all('tr')
-                    if len(name_rows) >= 2:
-                        player_name = name_rows[0].find('a').text.strip()
-                        pos = name_rows[1].text.strip()
-                    else:
-                        player_name = cells[1].text.strip()
-                        pos = "N/A"
-                else:
-                    player_name = cells[1].text.strip()
-                    pos = "N/A"
-                
-                # Check for duplicates to handle TM's silent pagination repetition
-                if player_name in seen_players:
-                    continue
+                # Prevent silent pagination duplication from TM
+                if player_data['Player'] in seen_players: continue
                     
-                seen_players.add(player_name)
+                seen_players.add(player_data['Player'])
+                players.append(player_data)
                 new_players_count += 1
-                
-                age = cells[2].text.strip()
-                squad = cells[3].find('img').get('alt') if cells[3].find('img') else "Unknown"
-                val_str = cells[5].text.strip()
-                
-                players.append({
-                    "Player": player_name,
-                    "Squad": squad,
-                    "Position": pos,
-                    "Age": age,
-                    "Market Value str": val_str
-                })
                 
             if new_players_count == 0:
                 print(f"No new players found on page {page_num}. Ending pagination.")
@@ -112,24 +108,21 @@ def fetch_transfermarkt_pages():
                 
             time.sleep(3) # Polite scraping
             
-        if success and len(players) > 0:
-            print(f"Successfully scraped {len(players)} players from {domain}.")
+        if players:
+            print(f"✅ Successfully scraped {len(players)} players from {domain}.")
             return players
             
-    return players
+    print("❌ Failed to scrape Transfermarkt on all domains.")
+    return []
 
-def fetch_fbref_live(name, url):
-    print(f"\n--- Trying Live FBRef for {name} ---")
-    html = get_html_playwright(url, wait_time=4)
-    if not html: return None
-    
-    # FBRef hides data in comments
+def extract_fbref_table(html):
+    """Cleans FBRef HTML (removes comments) and extracts the primary player dataframe."""
     html = html.replace('<!--', '').replace('-->', '')
-    
     try:
         dfs = pd.read_html(html)
         for df in dfs:
             cols = df.columns
+            # Flatten multi-level headers if present
             if isinstance(cols, pd.MultiIndex):
                 cols = cols.get_level_values(1)
                 
@@ -137,77 +130,63 @@ def fetch_fbref_live(name, url):
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = df.columns.droplevel(0)
                 
-                # Clean up repeated headers
+                # Clean up repeated FBRef headers mid-table
                 df = df.loc[:,~df.columns.duplicated()].copy()
                 df = df[df['Player'] != 'Player'].copy()
                 return df
     except Exception as e:
-        print(f"Live parsing failed: {e}")
-        
+        print(f"Failed to parse table: {e}")
     return None
 
-def fetch_fbref_wayback(name, url):
-    print(f"--- Falling back to Wayback Machine for {name} ---")
-    import requests
-    retries = 3
-    for attempt in range(retries):
-        try:
-            headers = {"User-Agent": USER_AGENT}
-            resp = requests.get(url, headers=headers, timeout=30)
-            if resp.status_code == 200:
-                html = resp.text.replace('<!--', '').replace('-->', '')
-                dfs = pd.read_html(html)
-                for df in dfs:
-                    cols = df.columns
-                    if isinstance(cols, pd.MultiIndex):
-                        cols = cols.get_level_values(1)
-                    if 'Player' in cols:
-                        if isinstance(df.columns, pd.MultiIndex):
-                            df.columns = df.columns.droplevel(0)
-                        df = df.loc[:,~df.columns.duplicated()].copy()
-                        df = df[df['Player'] != 'Player'].copy()
-                        return df
-        except Exception as e:
-            print(f"Wayback attempt {attempt+1} failed: {e}")
-            time.sleep(5)
-    return None
-
-def scrape_data():
-    os.makedirs("data/raw", exist_ok=True)
-    print("=== Advanced Scraper: Playwright Live Edition ===")
-    
-    # 1. Transfermarkt
-    tm_players = fetch_transfermarkt_pages()
-    if tm_players:
-        tm_df = pd.DataFrame(tm_players)
-        tm_df.to_csv("data/raw/transfermarkt_top200.csv", index=False)
-        print(f"[DONE] Saved {len(tm_df)} unique players to TM CSV.")
-    else:
-        print("[ERROR] Failed to scrape Transfermarkt.")
-        
-    # 2. FBRef
-    fbref_endpoints = {
+def scrape_fbref():
+    """Scrapes FBref stats using Playwright, falling back to Wayback Machine requests if blocked."""
+    endpoints = {
         "Standard": {
             "live": "https://fbref.com/en/comps/10/stats/Championship-Stats",
-            "wayback": "https://web.archive.org/web/20251215/https://fbref.com/en/comps/10/stats/Championship-Stats"
+            "archive": "https://web.archive.org/web/20251215/https://fbref.com/en/comps/10/stats/Championship-Stats"
         },
         "Shooting": {
             "live": "https://fbref.com/en/comps/10/shooting/Championship-Stats",
-            "wayback": "https://web.archive.org/web/20251215/https://fbref.com/en/comps/10/shooting/Championship-Stats"
+            "archive": "https://web.archive.org/web/20251215/https://fbref.com/en/comps/10/shooting/Championship-Stats"
         }
     }
     
-    for name, urls in fbref_endpoints.items():
-        df = fetch_fbref_live(name, urls["live"])
+    for name, urls in endpoints.items():
+        print(f"\n--- Scraping FBRef: {name} ---")
+        
+        # Attempt 1: Live Playwright
+        html = fetch_html_playwright(urls["live"], wait_time=4)
+        df = extract_fbref_table(html) if html else None
+        
+        # Attempt 2: Wayback Machine via basic requests (light fallback)
         if df is None or df.empty:
-            print("Live scrape failed or returned empty.")
-            df = fetch_fbref_wayback(name, urls["wayback"])
-            
+            print("Live scrape failed. Falling back to Wayback Machine archive...")
+            try:
+                resp = requests.get(urls["archive"], headers={"User-Agent": USER_AGENT}, timeout=15)
+                if resp.status_code == 200:
+                    df = extract_fbref_table(resp.text)
+            except Exception as e:
+                print(f"Archive fallback failed: {e}")
+
+        # Save results
         if df is not None and not df.empty:
             df.to_csv(f"data/raw/fbref_{name.lower()}.csv", index=False)
-            print(f"--> Saved {len(df)} {name} records.")
+            print(f"✅ Saved {len(df)} {name} records.")
         else:
-            print(f"[ERROR] Completely failed to acquire {name} stats.")
+            print(f"❌ Failed to acquire {name} stats.")
+
+def scrape_data():
+    print("=== Pipeline: Refactored Data Scraper ===")
+    os.makedirs("data/raw", exist_ok=True)
+    
+    # 1. Transfermarkt
+    tm_players = scrape_transfermarkt()
+    if tm_players:
+        tm_df = pd.DataFrame(tm_players)
+        tm_df.to_csv("data/raw/transfermarkt_top200.csv", index=False)
+        
+    # 2. FBRef
+    scrape_fbref()
 
     print("\n=== Scraper Complete ===")
 
